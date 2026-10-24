@@ -121,6 +121,7 @@ class LicenseHelper implements LicenseHelperInterface
 
     protected StatusMapper $statusMapper;
 
+    /** Unused; kept so that subclasses calling this constructor keep working. */
     protected StatusCache $statusCache;
 
     /**
@@ -143,7 +144,7 @@ class LicenseHelper implements LicenseHelperInterface
      * @param DateTime $dateTime
      * @param ConfigCollectionFactory $configCollectionFactory
      * @param StatusMapper $statusMapper
-     * @param StatusCache $statusCache
+     * @param StatusCache $statusCache Unused, kept for backward compatibility
      */
     public function __construct(
         Curl                      $curl,
@@ -201,13 +202,12 @@ class LicenseHelper implements LicenseHelperInterface
                 $this->saveLicenseConfig(self::PATH_DEVELOPMENT, 1);
                 $result['warnings'][] = __('Development license detected. Please do not use for production.');
             }
-            $this->saveLicenseConfig(self::PATH_VALID_UNTIL, (string)($result['support_expiry_date'] ?? ''));
+            $this->saveLicenseConfig(self::PATH_VALID_UNTIL, (string)$this->statusMapper->fromApiResponse($result)->validUntil);
         } else {
             $this->saveLicenseConfig(self::PATH_ACTIVE, 0);
         }
 
         $this->reinitableConfig->reinit();
-        $this->statusCache->invalidate($this->getModuleName());
         unset($result['access_token']);
         $result['status'] = $this->getStatus()->toArray();
         return $result;
@@ -428,20 +428,20 @@ class LicenseHelper implements LicenseHelperInterface
 
         $this->saveLicenseConfig(self::PATH_ACTIVE, 0);
         $this->saveLicenseConfig(self::PATH_DEVELOPMENT, 0);
-        $this->saveLicenseConfig(self::PATH_VALID_UNTIL, '');
-        $this->saveLicenseConfig(self::PATH_ACCESS_TOKEN, '');
+        // Without an answer the server still holds the installation; the token stays, so activating
+        // the same serial again and then deactivating frees it.
+        if ($this->lastRequestAnswered) {
+            $this->saveLicenseConfig(self::PATH_VALID_UNTIL, '');
+            $this->saveLicenseConfig(self::PATH_ACCESS_TOKEN, '');
+        }
 
         if ($result['success']) {
             $result['messages'][] = __('License successfully deactivated!');
-            $this->saveLicenseConfig(self::PATH_ACTIVE, 0);
-            $this->saveLicenseConfig(self::PATH_DEVELOPMENT, 0);
-            $this->saveLicenseConfig(self::PATH_VALID_UNTIL, '');
-            $this->saveLicenseConfig(self::PATH_ACCESS_TOKEN, $result['access_token']);
+            $this->saveLicenseConfig(self::PATH_ACCESS_TOKEN, (string)($result['access_token'] ?? ''));
         } else {
             $result['is_active'] = false;
         }
         $this->reinitableConfig->reinit();
-        $this->statusCache->invalidate($this->getModuleName());
 
         unset($result['access_token']);
         $result['status'] = $this->getStatus()->toArray();
@@ -488,26 +488,23 @@ class LicenseHelper implements LicenseHelperInterface
         $params = $this->getRequestParams(self::ACTION_VERIFY);
         $result = $this->sendRequest($params);
 
-        // An unanswered request carries no verdict on the license. Storing it as one would switch
-        // a working license off, and isActive() then keeps this method from ever asking again — the
-        // merchant would have to re-enter the serial by hand. The stored state stands, marked stale
-        // so the caller can say the check did not go through.
+        // An unanswered request changes nothing: the stored state stands, marked stale so the caller can say
+        // the check did not go through.
         if (!$this->lastRequestAnswered) {
             $stored = $this->getStatus();
 
             return new LicenseStatus($stored->state, $stored->isActive, $stored->isDev, $stored->validUntil, true);
         }
 
-        $status = $this->statusMapper->fromApiResponse($result);
-
-        $this->saveLicenseConfig(self::PATH_ACTIVE, $status->isActive ? 1 : 0);
-        $this->saveLicenseConfig(self::PATH_DEVELOPMENT, $status->isDev ? 1 : 0);
-        $this->saveLicenseConfig(self::PATH_VALID_UNTIL, (string)$status->validUntil);
+        // An automatic check never switches the license on or off, whatever the server answers: only activating
+        // and deactivating change it. An answer refreshes the support date (when granted) and the check time.
+        $answered = $this->statusMapper->fromApiResponse($result);
+        if ($answered->isActive) {
+            $this->saveLicenseConfig(self::PATH_VALID_UNTIL, (string)$answered->validUntil);
+        }
         $this->saveLicenseConfig(self::PATH_VERIFIED_TIME, $this->dateTime->gmtTimestamp());
         $this->reinitableConfig->reinit();
 
-        $this->statusCache->set($this->getModuleName(), $status);
-
-        return $status;
+        return $this->getStatus();
     }
 }

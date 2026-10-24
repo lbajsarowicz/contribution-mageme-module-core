@@ -23,6 +23,7 @@ namespace MageMe\Core\Notification\License;
 use MageMe\Core\Helper\GenericLicenseHelper;
 use MageMe\Core\Model\ModuleEcosystem\LicenseMetaResolver;
 use MageMe\Core\Model\ModuleEcosystem\RemoteCatalog;
+use Magento\Framework\Escaper;
 use Magento\Framework\Module\Manager as ModuleManager;
 use Magento\Framework\Notification\MessageInterface;
 
@@ -36,6 +37,8 @@ class Activate implements MessageInterface
 
     protected ModuleManager $moduleManager;
 
+    protected Escaper $escaper;
+
     /** @var array<string, string>|null */
     private ?array $unlicensed = null;
 
@@ -43,12 +46,14 @@ class Activate implements MessageInterface
         RemoteCatalog        $catalog,
         LicenseMetaResolver  $licenseMetaResolver,
         GenericLicenseHelper $genericLicenseHelper,
-        ModuleManager        $moduleManager
+        ModuleManager        $moduleManager,
+        Escaper              $escaper
     ) {
         $this->catalog              = $catalog;
         $this->licenseMetaResolver  = $licenseMetaResolver;
         $this->genericLicenseHelper = $genericLicenseHelper;
         $this->moduleManager        = $moduleManager;
+        $this->escaper              = $escaper;
     }
 
     /**
@@ -76,7 +81,8 @@ class Activate implements MessageInterface
         if (empty($modules)) {
             return '';
         }
-        return (string)__('Please activate your license for:') . ' ' . implode(', ', $modules);
+        return (string)__('Please activate your license for:') . ' '
+            . implode(', ', array_map([$this->escaper, 'escapeHtml'], $modules));
     }
 
     /**

@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace MageMe\Core\Model\ModuleEcosystem;
 
 use MageMe\Core\Model\License\LicenseStatus;
+use MageMe\Core\Model\License\Urls;
 
 /**
  * Pure builder for the ecosystem-block CTA URLs (Renew / Get Pro).
@@ -27,7 +28,7 @@ use MageMe\Core\Model\License\LicenseStatus;
  */
 class CtaLinkBuilder
 {
-    public const DEFAULT_RENEW_URL = 'https://mageme.com/licenses/renew';
+    public const DEFAULT_RENEW_URL = Urls::RENEW;
 
     /** utm_content values — where in the panel the click came from. */
     public const PLACEMENT_HEADER = 'header_button';

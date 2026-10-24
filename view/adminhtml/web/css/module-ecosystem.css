@@ -572,6 +572,40 @@
     border-color: #fca5a5;
     color: #7f1d1d;
 }
+.mageme-ecosystem__accept {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 10px;
+}
+.mageme-ecosystem__accept-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.mageme-ecosystem__accept-row .admin__field-label {
+    text-align: left;
+}
+.mageme-ecosystem__license-messages .is-warning a {
+    color: #005fa8;
+}
+.mageme-ecosystem__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+.mageme-ecosystem__license-messages .is-error a {
+    display: block;
+    width: fit-content;
+    margin-top: 4px;
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+}
 
 /* Filter pills — Apple Settings vibe; soft fills, no heavy black */
 .mageme-ecosystem__filters {
@@ -993,6 +1027,13 @@
     margin: 0 !important;
     padding: 0 !important;
 }
+.mageme-modal::backdrop {
+    background: rgba(15, 23, 42, 0.4);
+}
+.mageme-modal .mm-dialog__content {
+    max-height: none;
+    padding: 0;
+}
 .mageme-modal__icon {
     display: flex;
     align-items: center;
@@ -1024,14 +1065,19 @@
 .mageme-modal__body strong {
     color: #991b1b;
     font-weight: 700;
+    white-space: nowrap;
 }
 .mageme-modal__body a {
+    white-space: nowrap;
     color: #2563eb;
     text-decoration: none;
     font-weight: 500;
 }
 .mageme-modal__body a:hover { text-decoration: underline; }
 .mageme-modal__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     margin: 24px 0 0 !important;
     gap: 8px;
 }
@@ -1048,6 +1094,7 @@
     font-size: 13px;
     font-weight: 500;
     line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
     transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
     box-shadow: none !important;

@@ -21,7 +21,7 @@ declare(strict_types=1);
 namespace MageMe\Core\Model\ModuleEcosystem;
 
 use MageMe\Core\Helper\GenericLicenseHelper;
-use MageMe\Core\Helper\ModulesHelper;
+use MageMe\Core\Model\License\InstalledVersion;
 use MageMe\Core\Model\License\LicenseStatus;
 use Magento\Backend\Model\UrlInterface;
 use Magento\Framework\Module\ModuleListInterface;
@@ -32,8 +32,6 @@ class EcosystemDataProvider
     private $moduleList;
     /** @var RemoteCatalog */
     private $catalog;
-    /** @var ModulesHelper */
-    private $modulesHelper;
     /** @var UrlInterface */
     private $backendUrl;
     /** @var LicenseMetaResolver */
@@ -46,29 +44,31 @@ class EcosystemDataProvider
     private $ctaLinkBuilder;
     /** @var AddonCompatibility */
     private $addonCompatibility;
+    /** @var InstalledVersion */
+    private $installedVersion;
     /** @var array<string, EcosystemView> */
     private $memo = [];
 
     public function __construct(
         ModuleListInterface  $moduleList,
         RemoteCatalog        $catalog,
-        ModulesHelper        $modulesHelper,
         UrlInterface         $backendUrl,
         LicenseMetaResolver  $licenseMetaResolver,
         GenericLicenseHelper $genericLicenseHelper,
         EditionDetector      $editionDetector,
         CtaLinkBuilder       $ctaLinkBuilder,
-        AddonCompatibility   $addonCompatibility
+        AddonCompatibility   $addonCompatibility,
+        InstalledVersion     $installedVersion
     ) {
         $this->moduleList           = $moduleList;
         $this->catalog              = $catalog;
-        $this->modulesHelper        = $modulesHelper;
         $this->backendUrl           = $backendUrl;
         $this->licenseMetaResolver  = $licenseMetaResolver;
         $this->genericLicenseHelper = $genericLicenseHelper;
         $this->editionDetector      = $editionDetector;
         $this->ctaLinkBuilder       = $ctaLinkBuilder;
         $this->addonCompatibility   = $addonCompatibility;
+        $this->installedVersion     = $installedVersion;
     }
 
     private function buildLicenseInfo(string $moduleName): LicenseInfo
@@ -251,8 +251,12 @@ class EcosystemDataProvider
     /** @param array<string, mixed> $entry */
     private function buildRow(string $moduleName, array $entry, bool $isCore): EcosystemRow
     {
-        $localInfo    = $this->moduleList->getOne($moduleName);
-        $localVersion = isset($localInfo['setup_version']) ? $localInfo['setup_version'] : null;
+        $localInfo = $this->moduleList->getOne($moduleName);
+        // composer.json carries the release (4.0.0-beta.1); setup_version only the schema (4.0.0).
+        $localVersion = $localInfo !== null ? $this->installedVersion->get($moduleName) : '';
+        if ($localVersion === '') {
+            $localVersion = isset($localInfo['setup_version']) ? $localInfo['setup_version'] : null;
+        }
         if (is_string($localVersion) && $localVersion === '') {
             $localVersion = null;
         }

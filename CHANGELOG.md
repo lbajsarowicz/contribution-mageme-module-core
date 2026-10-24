@@ -1,3 +1,43 @@
+## 2.2.0
+
++ New: a shared announcement line for MageMe admin grids shows the newest unread MageMe message under the page title, with a dismiss for roles allowed to mark notifications read
++ New: license checks send the installed module version; when the license does not cover that version, one admin inbox message and a warning in the module settings panel offer to renew the license
++ New: a refused license activation explains why (serial not found, for another product, disabled, active on another installation, for another Magento edition) and links to My Products when the fix is made there
++ New: the license verdict tells modules when the installed version needs a license upgrade to the new product generation, and whether that upgrade is free or comes with a renewal
++ New: modules can ask whether the installation is a development one, judged by the storefront addresses of all store views
++ New: a license manager can accept the license agreement of a free upgrade to a new product generation right in the Magento admin; the new license verdict applies at once
++ New: the module panel, the activation notice and the license section read the MageMe module catalog for the product generation that is installed (WebForms 3 and WebForms 4 share a module); an add-on is offered for the generation of the module it extends, also when one of another major is installed (Mailchimp 3.0.5 under WebForms 4 offers 4.0.0)
++ New: when the installed version comes with a free upgrade, the license warning in the module settings shows the license agreement of its generation and an Accept and Upgrade button to admins allowed to accept license upgrades
++ New: Trusted Proxies setting (Stores > Configuration > MageMe Extensions > MageMe > Network, ACL "Network Settings"): when filled, the visitor IP is taken from X-Forwarded-For only for requests that come through the listed proxies (IPv4/IPv6 addresses and CIDR ranges)
+- Fix: an activation that gets no answer from the license server leaves the current license, its serial and its version verdict as they were
+- Fix: activating a production license after a development one no longer leaves the license marked as development
+- Fix: the loader script is printed through the CSP secure renderer, so forms mount under a strict Content Security Policy
+- Fix: the house dialog shows a text message as text; a caller that passed markup in text now sees it literally — pass it as html
+- Fix: links in a dialog message are underlined
+- Fix: a license check that the license server refuses for a reason other than the license itself (a passing fault, a rate limit) no longer switches the license off, whether cron or Check Again runs it; it is retried later, and Check Again answers `reason: no_verdict` (or `not_run` within the rate limit) so the page can say the check did not go through
+- Fix: the license warning and the inbox message about a new product generation say how it is obtained: accepting the license agreement for a free upgrade, a renewal for a paid one (without the support date, which explained nothing), a neutral note when the license server does not say
+- Fix: one admin inbox message per module about an uncovered version: Core keeps its id, a newer uncovered version replaces it, and it is marked read once the version is covered again (a renewal or an accepted upgrade) or the license is deactivated; it links to what resolves it (the renewal of the serial, the license agreement, or My Products) and is not shown as a grid announcement
+- Fix: the license cron loads the module catalog when the cache lost it (at once when the last attempt got it, an hour after one that failed; 2-second timeout), so license messages and the settings panel get the module names and the license block back without anyone opening a MageMe page
+- Fix: opening a MageMe settings page no longer holds the admin session while the module catalog is fetched; the catalog is asked for only when it is 6 hours old or older or the cache lost it (at once when the last attempt got it), not again within an hour of an attempt that failed, and an unchanged one is not rewritten
+- Fix: the module panel shows the installed release from composer.json (4.0.0-beta.1, not the schema version 4.0.0), so a beta sees the release as an update
+- Fix: module names in the "please activate your license" system message are escaped
+- Fix: the "Open my licenses" button in the "Support expired" window did nothing; the window now uses Core's own dialog
+- Fix: deactivating a license changes nothing unless the license server confirms it or says it holds no such installation (a license code such as not_found or in_use): without an answer, or on another refusal, the license stays active with its token, expiry, coverage and inbox message, and the admin sees why; on the deprecated LicenseHelper deactivation still switches the license off here, and without an answer from the server it keeps the token so the license can be deactivated again
+- Fix: a license expiry date that is not a Y-m-d date is no longer stored (also for modules on the deprecated LicenseHelper)
+- Fix: reading license.xml no longer changes the libxml error mode of the rest of the request
+- Fix: DateHelper::formatDateStrf() formats Laminas patterns correctly (dd.MM.yyyy gives 23.10.2026)
+- Fix: missing translations in en_US.csv; ACL title "View & Manage License Serials"
+* Change: license status is checked by cron at most once a day (hourly while the installed version is not covered) instead of every time a module's settings page opens; admin pages no longer call the license server
+* Change: the automatic license check does not switch a license off, and neither does Check Again, whatever the license server answers (also for modules on the deprecated LicenseHelper): only Deactivate does; a granted check refreshes the support date and the version coverage, and Check Again answers `refusal` with why the server did not grant the license
+* Change: license checks of different installations are spread over the hour instead of all starting at the same minute
+* Change: the visitor IP stored by MageMe modules comes from Magento's remote address with CF-Connecting-IP and X-Forwarded-For; the Client-IP header is no longer read and the result is always a valid IP
+* Change: license requests without a resolvable module answer {success: false, errors: [...]} like the other license endpoints
+* Change: the license controllers and the module panel data provider no longer take ModulesHelper, and Core no longer writes the license status cache nobody read; the deprecated LicenseHelper keeps its constructor for older modules
+* Change: composer.json and module.xml declare Magento_Ui and Magento_Cron
+* Change: conflict with mageme/module-webforms-3 below 3.5.5 (those versions reference a class removed in Core 2.0.0); WebForms 3 installed in app/code is not covered by this rule, update it to 3.5.5 or later before Core 2.2.0
+* Change: SweetAlert2 and tingle.js carry their MIT license notices and are deprecated, kept for older modules, to be removed in Core 3.0
+* Change: README lists everything a license request sends and the actual check schedule
+
 ## 2.1.4
 
 - Fix: on older Magento 2.4 versions (such as 2.4.2) admin pages failed with a curl_setopt() error when the MageMe news feed was checked

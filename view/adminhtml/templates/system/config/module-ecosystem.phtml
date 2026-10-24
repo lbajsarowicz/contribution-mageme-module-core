@@ -132,6 +132,7 @@ $i18nLabels = [
     'renewHint'           => (string) __('You can renew it from your account at %1'),
     'openMyLicenses'      => (string) __('Open my licenses'),
     'close'               => (string) __('Close'),
+    'openMyProducts'      => (string) __('Open My Products'),
 ];
 ?>
 <div class="mageme-ecosystem"
@@ -142,7 +143,9 @@ $i18nLabels = [
      data-offers-pro="<?= $offersPro ? '1' : '0' ?>"
      data-default-expanded="<?= $expanded ? '1' : '0' ?>"
      data-needs-refresh="<?= $block->isCatalogEmpty() && $block->canHydrate() ? '1' : '0' ?>"
+     data-catalog-stale="<?= $block->isCatalogStale() ? '1' : '0' ?>"
      data-catalog-refresh-url="<?= $escaper->escapeUrl($block->getCatalogRefreshUrl()) ?>"
+     data-my-products-url="<?= $escaper->escapeUrl($block->getMyProductsUrl()) ?>"
      data-ecosystem-render-url="<?= $escaper->escapeUrl($block->getEcosystemRenderUrl()) ?>"
      data-i18n="<?= $escaper->escapeHtmlAttr(json_encode($i18nLabels)) ?>"
      data-form-type="other"
@@ -370,6 +373,58 @@ $i18nLabels = [
             <div class="mageme-ecosystem__body-inner">
                 <?php $lic = $view->license; ?>
                 <?php if ($lic !== null && $lic->supported && $block->canViewLicense()): ?>
+                    <?php $uncovered = $block->getUncoveredVersion($lic->moduleId, $lic->moduleName); ?>
+                    <?php if ($uncovered !== null): ?>
+                        <div class="mageme-ecosystem__license-messages" data-mageme-license-coverage>
+                            <div class="is-warning">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                <span>
+                                    <?php if ($lic->state === 'dev'): ?>
+                                        <?= $escaper->escapeHtml(__('This development license does not cover the installed version %1. The storefront is not affected. Activate a production license.', $uncovered->checkedVersion)) ?>
+                                    <?php elseif ($uncovered->upgradeRequired && $uncovered->upgradeKind === 'free'): ?>
+                                        <?= $escaper->escapeHtml(__('A free upgrade to %1 %2 is included in your license. The storefront is not affected.', $block->getNameBeforeVersion($view->core->name), $uncovered->checkedVersion)) ?>
+                                        <?php if ($block->canAcceptUpgrade()): ?>
+                                            <?php
+                                            $acceptBoxId = 'mageme-accept-' . $sectionId;
+                                            $agreementLink = '<a href="' . $escaper->escapeUrl($block->getAgreementUrl()) . '" target="_blank" rel="noopener noreferrer">'
+                                                . $escaper->escapeHtml($block->getAgreementTitle($view->core->name, $uncovered->checkedVersion))
+                                                . '<span class="mageme-ecosystem__sr"> ' . $escaper->escapeHtml(__('(opens in a new tab)')) . '</span></a>';
+                                            ?>
+                                            <span class="mageme-ecosystem__accept"
+                                                  data-mageme-accept-upgrade
+                                                  data-accept-url="<?= $escaper->escapeUrl($block->getAcceptUpgradeUrl()) ?>"
+                                                  data-assent-text="<?= $escaper->escapeHtmlAttr(__('I am authorized to accept the %1 for this license, and I agree to it.', $block->getAgreementTitle($view->core->name, $uncovered->checkedVersion))) ?>"
+                                                  data-not-answered-text="<?= $escaper->escapeHtmlAttr(__('We could not confirm the acceptance. Click Recheck License Status.')) ?>"
+                                                  data-unconfirmed-text="<?= $escaper->escapeHtmlAttr(__('We could not confirm the acceptance. Reload this page in a minute to see the license status.')) ?>"
+                                                  data-accepted-text="<?= $escaper->escapeHtmlAttr(__('License agreement accepted. Updates of %1 are covered again.', $view->core->name)) ?>">
+                                                <span class="mageme-ecosystem__accept-row">
+                                                    <input type="checkbox" class="admin__control-checkbox" id="<?= $escaper->escapeHtmlAttr($acceptBoxId) ?>"/>
+                                                    <label class="admin__field-label" for="<?= $escaper->escapeHtmlAttr($acceptBoxId) ?>"><?= /* @noEscape */ str_replace(
+                                                        '%1',
+                                                        $agreementLink,
+                                                        $escaper->escapeHtml(__('I am authorized to accept the %1 for this license, and I agree to it.', '%1'))
+                                                    ) ?></label>
+                                                </span>
+                                                <button type="button" class="action-primary" data-mageme-accept-upgrade-submit disabled><?= $escaper->escapeHtml(__('Accept and Upgrade')) ?></button>
+                                            </span>
+                                        <?php else: ?>
+                                            <?= $escaper->escapeHtml(__('An administrator allowed to accept license upgrades can accept its license agreement here.')) ?>
+                                        <?php endif; ?>
+                                    <?php elseif ($uncovered->upgradeRequired && $uncovered->upgradeKind === 'renewal'): ?>
+                                        <?= $escaper->escapeHtml(__('%1 %2 requires a license renewal. The storefront is not affected.', $block->getNameBeforeVersion($view->core->name), $uncovered->checkedVersion)) ?>
+                                        <a href="<?= $escaper->escapeUrl((string)$uncovered->renewUrl) ?>" target="_blank" rel="noopener noreferrer"><?= $escaper->escapeHtml(__('Renew the license')) ?></a><?= $escaper->escapeHtml(__(' to cover it.')) ?>
+                                    <?php elseif ($uncovered->upgradeRequired): ?>
+                                        <?= $escaper->escapeHtml(__('%1 %2 needs a license upgrade. The storefront is not affected. Contact MageMe support.', $block->getNameBeforeVersion($view->core->name), $uncovered->checkedVersion)) ?>
+                                    <?php else: ?>
+                                        <?= $escaper->escapeHtml($uncovered->coveredUntil !== null
+                                            ? __('This license includes updates released until %1. The installed version %2 was released later. The storefront is not affected.', $block->formatLicenseDate($uncovered->coveredUntil), $uncovered->checkedVersion)
+                                            : __('This license does not cover the installed version %1. The storefront is not affected.', $uncovered->checkedVersion)) ?>
+                                        <a href="<?= $escaper->escapeUrl((string)$uncovered->renewUrl) ?>" target="_blank" rel="noopener noreferrer"><?= $escaper->escapeHtml(__('Renew the license')) ?></a><?= $escaper->escapeHtml(__(' to cover it.')) ?>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <div class="mageme-ecosystem__license-messages" data-mageme-license-messages aria-live="polite"></div>
                     <div class="mageme-ecosystem__license"
                          data-mageme-license

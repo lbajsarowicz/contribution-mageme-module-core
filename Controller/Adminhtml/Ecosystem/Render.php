@@ -78,7 +78,10 @@ class Render extends Action implements HttpGetActionInterface
         }
 
         try {
-            $this->catalog->refresh();
+            $this->_session->writeClose();
+            if ($this->catalog->isStale()) {
+                $this->catalog->refresh();
+            }
             $view  = $this->dataProvider->buildFor($moduleName);
             $block = $this->layoutFactory->create()->createBlock(EcosystemBlock::class);
             $block->setData('ecosystem_view', $view);

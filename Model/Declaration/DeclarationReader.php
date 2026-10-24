@@ -30,10 +30,22 @@ class DeclarationReader
      */
     public function readString(string $xml, string $sourceLabel): ModuleDeclaration
     {
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
+        $previous = libxml_use_internal_errors(true);
         libxml_clear_errors();
+        try {
+            return $this->parse($xml, $sourceLabel);
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+    }
 
+    /**
+     * @throws \InvalidArgumentException on parse error or schema violation
+     */
+    private function parse(string $xml, string $sourceLabel): ModuleDeclaration
+    {
+        $dom = new \DOMDocument();
         if (!$dom->loadXML($xml)) {
             $err = $this->collectLibXmlErrors();
             throw new \InvalidArgumentException(

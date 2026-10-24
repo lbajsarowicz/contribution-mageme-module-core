@@ -34,7 +34,10 @@ class Activate extends AbstractAction implements HttpPostActionInterface
 
         list($licenseSection, $ownerModuleName) = $this->resolveLicenseTarget();
         if ($licenseSection === null || $ownerModuleName === null) {
-            return $resultJson->setHttpResponseCode(400)->setData(['error' => 'license_section or module_name required']);
+            return $resultJson->setHttpResponseCode(400)->setData([
+                'success' => false,
+                'errors'  => [(string)__('license_section or module_name required')],
+            ]);
         }
 
         $result = $this->genericLicenseHelper->activateLicense($licenseSection, $ownerModuleName, $serial);

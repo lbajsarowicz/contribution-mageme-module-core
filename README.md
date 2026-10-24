@@ -12,18 +12,19 @@ Foundation module for all [MageMe extensions](https://mageme.com) for Magento 2.
 
 ## What it provides
 
-- **License management** — activate, deactivate, and verify MageMe extension licenses against `license.mageme.com` from each module's admin configuration section. Status updates live on page load without blocking the admin UI.
+- **License management** — activate, deactivate, and verify MageMe extension licenses against `license.mageme.com` from each module's admin configuration section. Every request (activate, deactivate, check) sends the serial, the module name and its installed version, the store base URL, the Magento version and edition, the platform code (M2CE or M2EE) and the access token from the last activation, if there is one. The check runs from a cron job that looks every 5 minutes; each installation checks at its own minute of the hour, once a day per license (hourly while the installed version is not covered, right away after a module version changes, less often after failures), so admin pages never call the license server; "Recheck License Status" asks at once. Without a working cron the stored verdict stays as it was until a recheck or a new activation. The automatic check does not switch a license off, and neither does "Recheck License Status", whatever the license server answers: only Deactivate does. A granted check refreshes the support date and the version coverage, and the recheck says why the server did not grant the license.
+- **Version coverage** — a license covers the module versions released before it expired. When the installed version is newer, one message in the admin notifications inbox (and a warning in the module's settings panel) says how to get it covered: renew the license, accept the license agreement of a free upgrade (the panel has an Accept and Upgrade button), or activate a production license instead of a development one; the storefront is not affected. There is one such message per module: a newer uncovered version replaces it, and it is marked read once the version is covered or the license is deactivated. The message links to the renewal page of the serial, so the serial is visible to every admin who may read the inbox. Other MageMe modules can read the verdict through `MageMe\Core\Api\LicenseCoverageInterface`. A free upgrade to a new product generation is finished by accepting its license agreement: `GenericLicenseHelper::acceptUpgrade()` behind the POST `core/license/acceptUpgrade` (ACL `MageMe_Core::license_accept_upgrade`, Administrators only by default) sends it for the module's serial and stores the new verdict.
 - **Module ecosystem panel** — admin block injected into every MageMe module's configuration page. Shows the product family overview, installed add-ons, available updates, license status, and quick links to Renew, Get Pro, or Buy.
 - **News feed** — surfaces MageMe announcements in the Magento admin notifications inbox through Magento's standard `AdminNotification` infrastructure.
-- **Shared utilities** — locale-aware date and time formatting, client IP detection through proxies, static asset content inlining, area detection helpers, and a self-sizing admin multiselect form field.
-- **Bundled JS libraries** — SweetAlert2 and Tingle modal, shared by other MageMe modules' storefront UI to avoid duplication.
+- **Shared utilities** — locale-aware date and time formatting, visitor IP detection through proxies (see below), static asset content inlining, area detection helpers, and a self-sizing admin multiselect form field.
+- **Bundled JS libraries** — SweetAlert2 and Tingle modal, kept for older MageMe modules (see [Third-party libraries](#third-party-libraries-deprecated-kept-for-older-modules-removal-in-core-30)).
 
 ## Data sent with the news feed
 
 The news-feed request (at most once an hour, and only while someone is using the admin panel) carries:
 
 - the list of enabled MageMe modules with their versions;
-- a random installation identifier, generated once on the first request and stored in the `flag` table — it is not derived from your domain or any other store data, and it lets us count installations rather than requests;
+- a random, pseudonymous installation identifier, generated once on the first request and stored in the `flag` table — it is not derived from your domain or any other store data, and it lets us count installations rather than requests;
 - a pseudonymous fingerprint of the environment (a truncated hash of the base URL and installation date) — together with the identifier it shows when a store changes its domain or is copied to staging;
 - the application mode (production, developer or default) and whether the `Magento_Company` module (the B2B suite) is enabled.
 
@@ -36,6 +37,35 @@ bin/magento config:set mageme/feed/send_modules 0
 ```
 
 The identifier stays in the `flag` table if the module is removed; delete the `mageme_feed_installation_id` row to drop it.
+
+## Visitor IP address and trusted proxies
+
+MageMe modules record the visitor's IP address with submissions, quote requests and price requests. Core reads it the
+same way for all of them:
+
+- **Trusted Proxies empty (default):** the first of `CF-Connecting-IP` and `X-Forwarded-For` that the request carries
+  (for `X-Forwarded-For`, its leftmost address); when that value is not a valid IP, the address of the connection
+  (`REMOTE_ADDR`). This is Magento's own remote address with these two headers. Any request can set these headers.
+- **Trusted Proxies filled** (Stores › Configuration › MageMe Extensions › MageMe › Network): headers are believed only
+  when the connection comes from a listed proxy, and only `X-Forwarded-For` is read: from the right, past the listed
+  proxies, the first address that is not one of them. An entry that cannot be read (for example `unknown`) stops the
+  walk and the connection address is stored. A request from any other address is recorded with its own connection
+  address, so a visitor cannot pick the IP that gets stored.
+
+The list takes IPv4 and IPv6 addresses and CIDR ranges, one per line (commas also work). Fill it when the store runs
+behind a load balancer, Varnish or Cloudflare. With Cloudflare, list your own proxies and Cloudflare's IP ranges
+(cloudflare.com/ips): Cloudflare adds the visitor to `X-Forwarded-For`, so the walk finds it. The result is always a
+valid IP address.
+
+## Third-party libraries (deprecated, kept for older modules; removal in Core 3.0)
+
+| Library | Version | License | RequireJS name |
+|---|---|---|---|
+| [SweetAlert2](https://sweetalert2.github.io) | 8.5.0 | MIT, © 2014 Tristan Edwards & Limon Monte | `swal` |
+| [tingle.js](https://tingle.robinparisi.com) | 0.15 | MIT, © 2015 Robin Parisi | `tingle` |
+
+Older MageMe modules still load them, so they stay in Core 2.x with their license notices. Core's own admin UI no
+longer uses them; new code uses `MageMe_Core/js/dialog`. They will be removed in Core 3.0.
 
 ## Requirements
 
@@ -87,7 +117,7 @@ Need a feature an extension doesn't cover, or a bespoke Magento build? MageMe ta
 
 ## License
 
-Governed by the **MageMe End User License Agreement** ([mageme.com/license](https://mageme.com/license/)). Distributed free of charge as the shared foundation for MageMe extensions.
+Governed by the **MageMe End User License Agreement** ([mageme.com/license](https://mageme.com/license/)). Distributed free of charge as the shared foundation for MageMe extensions. The admin panel uses icons from [Phosphor](https://phosphoricons.com) (MIT) and [Lucide](https://lucide.dev) (ISC).
 
 ---
 

@@ -22,6 +22,11 @@
         return extra ? `${base} ${extra}` : base;
     };
 
+    // The page lock also sits on the root as an inline style, from the first open until the last
+    // dialog is gone: Firefox stops wheel scrolling on the root when its overflow returns to visible
+    // before focus is handed back to the opener.
+    let rootOverflow = '';
+
     class Modal {
         constructor(opts = {}) {
             this.opts = opts;
@@ -91,6 +96,10 @@
             if (!this.dialog.isConnected) {
                 document.body.appendChild(this.dialog);
             }
+            if (!document.querySelector('dialog.mm-dialog[open]')) {
+                rootOverflow = document.documentElement.style.overflow;
+                document.documentElement.style.overflow = 'hidden';
+            }
             document.body.classList.add(...cls('tingle-enabled', 'bodyOpen').split(' '));
             if (!this.dialog.open) {
                 this.dialog.showModal();
@@ -113,8 +122,18 @@
             }
             this.torndown = true;
             window.removeEventListener('keydown', this.onWindowKeydown);
-            document.body.classList.remove(...cls('tingle-enabled', 'bodyOpen').split(' '));
             this.dialog.remove();
+            // a dialog opened over another one leaves the page locked for the one still open
+            if (!document.querySelector('dialog.mm-dialog[open]')) {
+                document.body.classList.remove(...cls('tingle-enabled', 'bodyOpen').split(' '));
+                document.documentElement.style.overflow = rootOverflow;
+            }
+            // A tabindex="-1" landing zone (skip-link target, content wrapper) is not a control the
+            // visitor left; getting focus back there only paints a focus ring around a page region.
+            const landed = document.activeElement;
+            if (landed && landed.getAttribute('tabindex') === '-1') {
+                landed.blur();
+            }
             if (typeof this.opts.onClose === 'function') {
                 this.opts.onClose();
             }
@@ -161,8 +180,22 @@
         }
         const body = document.createElement('div');
         body.className = cls('mm-swal__html', 'html');
-        // Parity with the previous swal.fire: server/i18n messages render as HTML.
-        body.innerHTML = config.html || config.text || '';
+        // As in swal.fire: `html` renders as markup, `text` as text; a text of several lines gets a
+        // paragraph per line.
+        if (config.html) {
+            body.innerHTML = config.html;
+        } else if (config.text) {
+            const lines = String(config.text).split('\n');
+            if (lines.length === 1) {
+                body.textContent = lines[0];
+            } else {
+                lines.forEach((line) => {
+                    const p = document.createElement('p');
+                    p.textContent = line;
+                    body.appendChild(p);
+                });
+            }
+        }
         box.appendChild(body);
 
         const actions = document.createElement('div');

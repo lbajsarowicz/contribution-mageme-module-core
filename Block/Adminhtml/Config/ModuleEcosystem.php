@@ -20,6 +20,9 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Block\Adminhtml\Config;
 
+use MageMe\Core\Api\LicenseCoverageInterface;
+use MageMe\Core\Model\License\CoverageVerdict;
+use MageMe\Core\Model\License\Urls;
 use MageMe\Core\Model\ModuleEcosystem\EcosystemDataProvider;
 use MageMe\Core\Model\ModuleEcosystem\EcosystemRow;
 use MageMe\Core\Model\ModuleEcosystem\EcosystemView;
@@ -37,16 +40,29 @@ class ModuleEcosystem extends Template implements RendererInterface
 
     private EcosystemDataProvider $ecosystemDataProvider;
     private RemoteCatalog $catalog;
+    private LicenseCoverageInterface $coverage;
 
     public function __construct(
         Context $context,
         EcosystemDataProvider $ecosystemDataProvider,
         RemoteCatalog $catalog,
+        LicenseCoverageInterface $coverage,
         array $data = []
     ) {
         parent::__construct($context, $data);
         $this->ecosystemDataProvider = $ecosystemDataProvider;
         $this->catalog = $catalog;
+        $this->coverage = $coverage;
+    }
+
+    /**
+     * The stored verdict when the licence does not cover the installed version of its module, else null.
+     */
+    public function getUncoveredVersion(string $licenseSection, string $ownerModuleName): ?CoverageVerdict
+    {
+        $verdict = $this->coverage->getCoverage($licenseSection, $ownerModuleName);
+
+        return $verdict->state === CoverageVerdict::STATE_NOT_COVERED ? $verdict : null;
     }
 
     public function getFrameworkRow(): EcosystemRow
@@ -90,6 +106,11 @@ class ModuleEcosystem extends Template implements RendererInterface
         return $this->getViewFileUrl('MageMe_Core::images/mageme-logo.svg');
     }
 
+    public function getMyProductsUrl(): string
+    {
+        return Urls::MY_PRODUCTS;
+    }
+
     public function getCatalogRefreshUrl(): string
     {
         return $this->getUrl('core/catalog/refresh');
@@ -108,9 +129,51 @@ class ModuleEcosystem extends Template implements RendererInterface
         return empty($this->catalog->getAll());
     }
 
+    public function isCatalogStale(): bool
+    {
+        return $this->catalog->isStale();
+    }
+
     public function canViewLicense(): bool
     {
         return $this->_authorization->isAllowed('MageMe_Core::license_view');
+    }
+
+    public function canAcceptUpgrade(): bool
+    {
+        return $this->canViewLicense() && $this->_authorization->isAllowed('MageMe_Core::license_accept_upgrade');
+    }
+
+    public function getAcceptUpgradeUrl(): string
+    {
+        return $this->getUrl('core/license/acceptUpgrade');
+    }
+
+    public function getAgreementUrl(): string
+    {
+        return Urls::AGREEMENT;
+    }
+
+    /**
+     * The module name to put before a version: a generation the catalog names ("WebForms 4") is dropped.
+     */
+    public function getNameBeforeVersion(string $moduleTitle): string
+    {
+        return (string)preg_replace('/\s+\d+$/', '', trim($moduleTitle));
+    }
+
+    /**
+     * The agreement of the generation the installed version belongs to, e.g. "WebForms 4 License Agreement".
+     */
+    public function getAgreementTitle(string $moduleTitle, ?string $installedVersion): string
+    {
+        $title = trim($moduleTitle);
+        if (preg_match('/^v?(\d+)/', trim((string)$installedVersion), $m) === 1
+            && preg_match('/\s' . $m[1] . '$/', $title) !== 1) {
+            $title .= ' ' . $m[1];
+        }
+
+        return (string)__('%1 License Agreement', $title);
     }
 
     public function canHydrate(): bool

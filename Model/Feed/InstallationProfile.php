@@ -219,7 +219,7 @@ class InstallationProfile
     }
 
     /**
-     * Irreversible environment fingerprint, empty when the install date is unavailable
+     * Pseudonymous environment fingerprint (a truncated hash), empty when the install date is unavailable
      *
      * @return string|null
      */

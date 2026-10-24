@@ -12,4 +12,10 @@
  **/
 ?>
 <?php /** @var MageMe\Core\Block\Init $block */?>
-<script><?= /* @noEscape */ $block->getAssetContent('MageMe_Core::js/loader.min.js');?></script>
+<?php /** @var Magento\Framework\View\Helper\SecureHtmlRenderer|null $secureRenderer */?>
+<?php $loaderScript = $block->getAssetContent('MageMe_Core::js/loader.min.js'); ?>
+<?php if (isset($secureRenderer)): ?>
+<?= /* @noEscape */ $secureRenderer->renderTag('script', [], $loaderScript, false) ?>
+<?php else: ?>
+<script><?= /* @noEscape */ $loaderScript ?></script>
+<?php endif; ?>

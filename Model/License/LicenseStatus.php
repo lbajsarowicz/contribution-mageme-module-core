@@ -33,19 +33,23 @@ class LicenseStatus
     public $validUntil;
     /** @var bool */
     public $stale;
+    /** @var string|null why the license server did not grant the license, when a check just asked it */
+    public $refusal;
 
     public function __construct(
         string $state,
         bool $isActive,
         bool $isDev,
         ?string $validUntil,
-        bool $stale = false
+        bool $stale = false,
+        ?string $refusal = null
     ) {
         $this->state      = $state;
         $this->isActive   = $isActive;
         $this->isDev      = $isDev;
         $this->validUntil = $validUntil;
         $this->stale      = $stale;
+        $this->refusal    = $refusal;
     }
 
     public function toArray(): array

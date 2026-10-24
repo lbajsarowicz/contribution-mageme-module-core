@@ -21,7 +21,6 @@ declare(strict_types=1);
 namespace MageMe\Core\Controller\Adminhtml\License;
 
 use MageMe\Core\Helper\GenericLicenseHelper;
-use MageMe\Core\Helper\ModulesHelper;
 use MageMe\Core\Model\ModuleEcosystem\LicenseMetaResolver;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
@@ -38,8 +37,6 @@ abstract class AbstractAction extends Action
 
     protected JsonFactory $jsonFactory;
 
-    protected ModulesHelper $modulesHelper;
-
     protected GenericLicenseHelper $genericLicenseHelper;
 
     protected LicenseMetaResolver $licenseMetaResolver;
@@ -47,13 +44,11 @@ abstract class AbstractAction extends Action
     public function __construct(
         Context              $context,
         JsonFactory          $jsonFactory,
-        ModulesHelper        $modulesHelper,
         GenericLicenseHelper $genericLicenseHelper,
         LicenseMetaResolver  $licenseMetaResolver
     ) {
         parent::__construct($context);
         $this->jsonFactory          = $jsonFactory;
-        $this->modulesHelper        = $modulesHelper;
         $this->genericLicenseHelper = $genericLicenseHelper;
         $this->licenseMetaResolver  = $licenseMetaResolver;
     }

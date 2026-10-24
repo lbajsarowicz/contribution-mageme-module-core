@@ -69,6 +69,15 @@ class DeclarationRegistry
     }
 
     /**
+     * @return array<string, string> section => owning module, for every enabled MageMe module that declares one
+     */
+    public function getSectionOwners(): array
+    {
+        $this->ensureScanned();
+        return $this->sectionOwners;
+    }
+
+    /**
      * @return LicenseDeclaration[]
      */
     public function getPaidLicenseDeclarationsForSection(string $sectionName): array

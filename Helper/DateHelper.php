@@ -62,6 +62,18 @@ class DateHelper
         'z' => '%Z',
         'v' => '%Z'
     ];
+    /**
+     * ICU pattern letters as date() codes; a run of letters missing here is printed as text
+     */
+    private const ICU_TO_DATE = [
+        'yyyy' => 'Y', 'yyy' => 'Y', 'yy' => 'y', 'y' => 'Y',
+        'MMMM' => 'F', 'MMM' => 'M', 'MM' => 'm', 'M' => 'n',
+        'dd' => 'd', 'd' => 'j',
+        'EEEE' => 'l', 'EEE' => 'D', 'EE' => 'D', 'E' => 'D',
+        'HH' => 'H', 'H' => 'G', 'hh' => 'h', 'h' => 'g',
+        'mm' => 'i', 'm' => 'i', 'ss' => 's', 's' => 's',
+        'a' => 'A', 'z' => 'T', 'zzzz' => 'e', 'v' => 'T', 'Z' => 'O',
+    ];
     protected ScopeConfigInterface $scopeConfig;
 
     protected DateTime $dateTime;
@@ -108,7 +120,7 @@ class DateHelper
     }
 
     /**
-     * Convert Laminas date and format it according to locale settings.
+     * Format a date with a Laminas (ICU) pattern, e.g. 'dd.MM.yyyy'.
      *
      * @param string $value
      * @param string $format
@@ -116,15 +128,33 @@ class DateHelper
      */
     public function formatDateStrf(string $value, string $format): string
     {
-        if (strlen($value) > 0) {
-            $format = $this->convertLaminasToStrftime($format);
-            if (strtoupper(substr((string)PHP_OS, 0, 3)) == 'WIN') {
-                $format = preg_replace('#(?<!%)((?:%%)*)%e#', '\1%#d', $format);
-            }
-
-            return date($format, strtotime($value));
+        $time = strlen($value) > 0 ? strtotime($value) : false;
+        if ($time === false) {
+            return '';
         }
-        return '';
+        $text = static fn(string $literal): string => implode('', array_map(
+            static fn(string $char): string => '\\' . $char,
+            preg_split('//u', $literal, -1, PREG_SPLIT_NO_EMPTY) ?: []
+        ));
+        $format = (string)preg_replace_callback(
+            "/'((?:[^']|'')*)'|([A-Za-z])\\2*|[^A-Za-z']+/",
+            static function (array $m) use ($time, $text): string {
+                if (isset($m[2]) && $m[2] !== '') {
+                    if ($m[2] === 'D') {
+                        $day = (int)date('z', $time) + 1;
+                        return $text(strlen($m[0]) >= 3 ? sprintf('%03d', $day) : (string)$day);
+                    }
+                    return self::ICU_TO_DATE[$m[0]] ?? $text($m[0]);
+                }
+                if ($m[0] === "''") {
+                    return "\\'";
+                }
+                return $text(isset($m[1]) && $m[0][0] === "'" ? str_replace("''", "'", $m[1]) : $m[0]);
+            },
+            $format
+        );
+
+        return date($format, $time);
     }
 
     /**

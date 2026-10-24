@@ -8,7 +8,10 @@
                     <resource id="Magento_Backend::stores_settings">
                         <resource id="Magento_Config::config">
                             <resource id="MageMe_Core::info" title="MageMe Extensions" sortOrder="2000">
-                                <resource id="MageMe_Core::license_view" title="View &amp; manage license serials" sortOrder="10"/>
+                                <resource id="MageMe_Core::license_view" title="View &amp; Manage License Serials" sortOrder="10">
+                                    <resource id="MageMe_Core::license_accept_upgrade" title="Accept Free License Upgrades" sortOrder="10"/>
+                                </resource>
+                                <resource id="MageMe_Core::network_settings" title="Network Settings" sortOrder="20"/>
                             </resource>
                         </resource>
                     </resource>

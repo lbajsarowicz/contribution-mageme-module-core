@@ -75,6 +75,10 @@
     color: #545454;
 }
 
+.mm-swal__html a {
+    text-decoration: underline;
+}
+
 .mm-swal__actions {
     display: flex;
     justify-content: center;

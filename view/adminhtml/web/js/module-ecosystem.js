@@ -31,7 +31,8 @@
             supportExpiredTitle: 'Support expired',
             supportExpiredBody: 'Your support window expired on %1.',
             renewHint: 'You can renew it from your account at %1',
-            openMyLicenses: 'Open my licenses', close: 'Close'
+            openMyLicenses: 'Open my licenses', close: 'Close',
+            openMyProducts: 'Open My Products'
         };
         let I18N = I18N_DEFAULTS;
         try { I18N = { ...I18N_DEFAULTS, ...JSON.parse(root.getAttribute('data-i18n') || '{}') }; } catch (e) { /* keep defaults */ }
@@ -118,38 +119,36 @@
             expiredBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const expiredDate = expiredBtn.getAttribute('data-expired-date') || '';
-                const renewUrl = 'https://mageme.com/licenses/';
-                const renewLink = `<a href="${renewUrl}" target="_blank" rel="noopener noreferrer">mageme.com/licenses/</a>`;
+                const escape = (text) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+                const expiredDate = escape(expiredBtn.dataset.expiredDate || '');
+                const renewUrl = root.dataset.myProductsUrl || '';
+                const renewLink = `<a href="${escape(renewUrl)}" target="_blank" rel="noopener noreferrer">${escape(renewUrl.replace(/^https?:\/\//, ''))}</a>`;
                 const bodyExpired = I18N.supportExpiredBody.replace('%1', `<strong>${expiredDate}</strong>`);
                 const bodyRenew = I18N.renewHint.replace('%1', renewLink);
                 const html = `
                     <div class="mageme-modal__icon" aria-hidden="true">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </div>
-                    <h2 class="mageme-modal__title">${I18N.supportExpiredTitle}</h2>
+                    <h2 class="mageme-modal__title" id="mageme-support-expired-title">${I18N.supportExpiredTitle}</h2>
                     <div class="mageme-modal__body">${bodyExpired}<br>${bodyRenew}</div>
+                    <div class="mageme-modal__actions">
+                        <button type="button" class="mageme-modal__btn" data-mageme-modal-close>${I18N.close}</button>
+                        <button type="button" class="mageme-modal__btn mageme-modal__btn--primary" data-mageme-modal-confirm>${I18N.openMyLicenses}</button>
+                    </div>
                 `;
-                require(['swal'], (Swal) => {
-                    Swal.fire({
-                        html,
-                        showCancelButton: true,
-                        confirmButtonText: I18N.openMyLicenses,
-                        cancelButtonText: I18N.close,
-                        reverseButtons: true,
-                        buttonsStyling: false,
-                        customClass: {
-                            popup: 'mageme-modal',
-                            htmlContainer: 'mageme-modal__container',
-                            actions: 'mageme-modal__actions',
-                            confirmButton: 'mageme-modal__btn mageme-modal__btn--primary',
-                            cancelButton: 'mageme-modal__btn',
-                        },
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.open(renewUrl, '_blank', 'noopener');
-                        }
+                require(['MageMe_Core/js/dialog'], ({ modal: Modal }) => {
+                    const dialog = new Modal({ cssClass: ['mageme-modal'] });
+                    dialog.dialog.setAttribute('aria-labelledby', 'mageme-support-expired-title');
+                    dialog.setContent(html);
+                    const content = dialog.getContent();
+                    const confirm = content.querySelector('[data-mageme-modal-confirm]');
+                    content.querySelector('[data-mageme-modal-close]').addEventListener('click', () => dialog.close());
+                    confirm.addEventListener('click', () => {
+                        window.open(renewUrl, '_blank', 'noopener');
+                        dialog.close();
                     });
+                    dialog.open();
+                    confirm.focus();
                 });
             });
         }
@@ -193,7 +192,7 @@
                 'is-warning': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
                 'is-error':   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9"  x2="9"  y2="15"/><line x1="9"  y1="9"  x2="15" y2="15"/></svg>'
             };
-            const renderMessages = ({ messages = [], warnings = [], errors = [] }) => {
+            const renderMessages = ({ messages = [], warnings = [], errors = [], my_products_url: myProductsUrl = '' }) => {
                 messagesEl.replaceChildren();
                 const append = (list, cls) => list.forEach((m) => {
                     const div = document.createElement('div');
@@ -205,6 +204,15 @@
                 append(messages, 'is-success');
                 append(warnings, 'is-warning');
                 append(errors,   'is-error');
+                const lastError = messagesEl.querySelector('.is-error:last-child span');
+                if (lastError && typeof myProductsUrl === 'string' && myProductsUrl.startsWith('https://mageme.com/')) {
+                    const link = document.createElement('a');
+                    link.href = myProductsUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    link.textContent = I18N.openMyProducts;
+                    lastError.append(' ', link);
+                }
             };
 
             const STATE_LABELS = {
@@ -297,6 +305,10 @@
                         body: params.toString()
                     });
                     const data = await resp.json().catch(() => ({}));
+                    // The coverage warning describes the licence that was just replaced; the next page load shows the current one.
+                    if (data.success) {
+                        license.parentElement.querySelector('[data-mageme-license-coverage]')?.remove();
+                    }
                     renderMessages(data);
                     if (data.status) applyState(data.status);
                 } catch (_) {
@@ -307,6 +319,59 @@
             };
 
             refreshStatus();
+
+            // === Free upgrade: accept the agreement of the new generation ===
+            const accept = license.parentElement.querySelector('[data-mageme-accept-upgrade]');
+            if (accept) {
+                const box = accept.querySelector('input[type="checkbox"]');
+                const submit = accept.querySelector('[data-mageme-accept-upgrade-submit]');
+                let locked = false;
+                box.addEventListener('change', () => { submit.disabled = locked || !box.checked; });
+                submit.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const params = new URLSearchParams({
+                        form_key: document.querySelector('input[name="form_key"]')?.value ?? '',
+                        license_section: license.dataset.licenseSection ?? '',
+                        module_name: license.dataset.moduleName ?? '',
+                        assent_text: accept.dataset.assentText
+                    });
+                    submit.disabled = true;
+                    let retry = false;
+                    document.body.dispatchEvent(new Event('processStart', { bubbles: true }));
+                    try {
+                        const resp = await fetch(accept.dataset.acceptUrl, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (data.success && data.coverage?.covered === true) {
+                            license.parentElement.querySelector('[data-mageme-license-coverage]')?.remove();
+                            renderMessages({ messages: [accept.dataset.acceptedText] });
+                            messagesEl.setAttribute('tabindex', '-1');
+                            messagesEl.focus();
+                            refreshStatus();
+                            return;
+                        }
+                        // No answer: the acceptance may already be recorded, so it is not offered again.
+                        const errors = (data.errors || []).filter((m) => m !== accept.dataset.notAnsweredText);
+                        renderMessages({ errors: errors.length ? errors : [accept.dataset.unconfirmedText] });
+                        retry = errors.length > 0;
+                    } catch (_) {
+                        renderMessages({ errors: [I18N.connectError] });
+                        retry = true;
+                    } finally {
+                        locked = !retry;
+                        submit.disabled = locked || !box.checked;
+                        document.body.dispatchEvent(new Event('processStop', { bubbles: true }));
+                    }
+                });
+            }
 
             toggleBtn?.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -583,7 +648,7 @@
         }
         const anyNeedsRefresh = Array.from(roots).some((r) => r.getAttribute('data-needs-refresh') === '1');
 
-        if (!anyNeedsRefresh && roots[0]) {
+        if (!anyNeedsRefresh && roots[0] && roots[0].dataset.catalogStale === '1') {
             const refreshUrl = roots[0].getAttribute('data-catalog-refresh-url');
             if (refreshUrl) {
                 fetch(refreshUrl, { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } })

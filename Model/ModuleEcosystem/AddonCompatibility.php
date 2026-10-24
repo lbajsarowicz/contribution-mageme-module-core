@@ -46,11 +46,16 @@ class AddonCompatibility
      * @var ModuleListInterface
      */
     private $moduleList;
+    /**
+     * @var InstalledMajor
+     */
+    private $installedMajor;
 
-    public function __construct(RemoteCatalog $catalog, ModuleListInterface $moduleList)
+    public function __construct(RemoteCatalog $catalog, ModuleListInterface $moduleList, InstalledMajor $installedMajor)
     {
-        $this->catalog    = $catalog;
-        $this->moduleList = $moduleList;
+        $this->catalog        = $catalog;
+        $this->moduleList     = $moduleList;
+        $this->installedMajor = $installedMajor;
     }
 
     /**
@@ -61,7 +66,7 @@ class AddonCompatibility
      */
     public function filterFor(string $coreModuleName, array $addonNames): array
     {
-        return $this->filter($addonNames, $this->localVersionOf($coreModuleName));
+        return $this->filter($addonNames, $this->installedMajor->versionOf($coreModuleName));
     }
 
     /**
@@ -70,7 +75,7 @@ class AddonCompatibility
      */
     public function filter(array $addonNames, ?string $coreLocalVersion): array
     {
-        $major = $this->majorOf($coreLocalVersion);
+        $major = $this->installedMajor->ofVersion($coreLocalVersion);
         if ($major === null) {
             return $addonNames;
         }
@@ -98,7 +103,7 @@ class AddonCompatibility
         if ($addonName === '' || !$this->isInstalled($addonName)) {
             return false;
         }
-        $major = $this->majorOf($this->localVersionOf($coreModuleName));
+        $major = $this->installedMajor->of($coreModuleName);
 
         return $major !== null && !$this->belongsToMajor($addonName, $major);
     }
@@ -113,41 +118,6 @@ class AddonCompatibility
     private function isInstalled(string $moduleName): bool
     {
         return $this->moduleList->getOne($moduleName) !== null;
-    }
-
-    /**
-     * ModuleListInterface only carries ENABLED modules and setup_version is optional, so this
-     * returns null often enough that the null path is the important one.
-     */
-    private function localVersionOf(string $moduleName): ?string
-    {
-        $info = $this->moduleList->getOne($moduleName);
-        if (!is_array($info) || !isset($info['setup_version'])) {
-            return null;
-        }
-        $version = (string) $info['setup_version'];
-
-        return $version === '' ? null : $version;
-    }
-
-    /**
-     * Leading integer of a version string: "3.6.0", "v4.0.0", "4.0.0-beta1" → 3, 4, 4.
-     *
-     * Major 0 is refused so the two ends agree: majorsOf() only keeps positive majors, so a
-     * catalog can never name 0, and a 0.x suite would otherwise match nothing and mark every
-     * tagged add-on as absorbed.
-     */
-    private function majorOf(?string $version): ?int
-    {
-        if ($version === null || $version === '') {
-            return null;
-        }
-        if (preg_match('/^v?(\d+)/', trim($version), $m) !== 1) {
-            return null;
-        }
-        $major = (int) $m[1];
-
-        return $major > 0 ? $major : null;
     }
 
     /**

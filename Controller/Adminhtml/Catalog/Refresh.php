@@ -45,6 +45,7 @@ class Refresh extends Action implements HttpGetActionInterface
 
     public function execute()
     {
+        $this->_session->writeClose();
         $ok = $this->catalog->refresh();
         return $this->jsonFactory->create()->setData(['ok' => $ok]);
     }

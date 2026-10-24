@@ -23,6 +23,21 @@
             <argument name="curl" xsi:type="object">MageMeCoreHttpClient</argument>
         </arguments>
     </type>
+    <preference for="MageMe\Core\Api\LicenseCoverageInterface" type="MageMe\Core\Model\License\VersionCoverage"/>
+    <preference for="MageMe\Core\Api\DevelopmentHostInterface" type="MageMe\Core\Model\License\DevelopmentHost"/>
+    <virtualType name="MageMeCoreRemoteAddress" type="Magento\Framework\HTTP\PhpEnvironment\RemoteAddress">
+        <arguments>
+            <argument name="alternativeHeaders" xsi:type="array">
+                <item name="cf-connecting-ip" xsi:type="string">HTTP_CF_CONNECTING_IP</item>
+                <item name="x-forwarded-for" xsi:type="string">HTTP_X_FORWARDED_FOR</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <type name="MageMe\Core\Helper\NetworkHelper">
+        <arguments>
+            <argument name="remoteAddress" xsi:type="object">MageMeCoreRemoteAddress</argument>
+        </arguments>
+    </type>
     <type name="MageMe\Core\Model\ModuleEcosystem\RemoteCatalog">
         <arguments>
             <argument name="curl" xsi:type="object">MageMeCoreHttpClient</argument>
