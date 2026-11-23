@@ -115,8 +115,8 @@ class Init extends Template
         $inlineCss = $this->getLayout()->createBlock(
             Template::class,
             null,
-            ['data' => ['css' => $css]]
-        )->setTemplate($this->getCssTemplate());
+            ['data' => ['css' => $css, 'template' => $this->getCssTemplate()]]
+        );
         if ($this->useRegistry) {
             $registry->register($link, true);
         }
